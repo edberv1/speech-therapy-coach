@@ -51,7 +51,7 @@ def generate_exercise():
 
         # Call AI model
         response = client.chat.completions.create(
-            model="gpt-40-mini",  # fast small model
+            model="gpt-4o-mini",  # fast small model
             messages=[
                 {"role": "system", "content": "You are a helpful speech therapy assistant."},
                 {"role": "user", "content": prompt}

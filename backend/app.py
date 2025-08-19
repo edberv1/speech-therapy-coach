@@ -3,6 +3,7 @@ import os
 from flask import Flask, request, jsonify
 from openai import OpenAI
 from dotenv import load_dotenv
+from database import Exercise, session
 
 # Load environment variables
 load_dotenv()
@@ -37,7 +38,6 @@ def generate_exercise():
     except Exception as e:
         return jsonify({"error": str(e)}) , 500
     
-exercises = []
 
 @app.route("/add_exercise", methods=["POST"])
 def add_exercise():
@@ -48,14 +48,16 @@ def add_exercise():
     if not title or not description:
         return jsonify({"error" : "Title and description are required"}) , 400
     
-    exercise = {"title": title, "description": description}
-    exercises.append(exercise)
-    return jsonify({"message": "Exercise added!","exercise":exercise})
+    exercise = Exercise(title-title, description=description)
+    session.add(exercise)
+    session.commit()
+    return jsonify({"message": "Exercise added!", "exercise": {"title": title, "description": description}})
 
 @app.route("/exercises", methods=["GET"])
 def get_exercises():
-    return jsonify({"exercises": exercises})
-
+    all_exercises = session.query(Exercise).all()
+    exercises_list = [{"title": ex.title, "description": ex.description} for ex in all_exercises]
+    return jsonify({"exercises": exercises_list})
 
 if __name__ == "__main__":
     app.run(debug=True)

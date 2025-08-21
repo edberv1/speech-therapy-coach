@@ -17,12 +17,9 @@ def register():
         return jsonify({"error": "Email already exists"}), 400
 
     hashed_password = bcrypt.generate_password_hash(password).decode("utf-8")
-    therapist = Therapist(
-        name=name, email=email, password=hashed_password, phone=phone
-    )
+    therapist = Therapist(name=name, email=email, password=hashed_password, phone=phone)
     db.session.add(therapist)
     db.session.commit()
-
     return jsonify({"message": "Therapist registered successfully"}), 201
 
 @auth_routes.route("/login", methods=["POST"])
@@ -35,5 +32,4 @@ def login():
     if therapist and bcrypt.check_password_hash(therapist.password, password):
         access_token = create_access_token(identity=str(therapist.id), expires_delta=timedelta(days=1))
         return jsonify({"access_token": access_token}), 200
-    else:
-        return jsonify({"error": "Invalid credentials"}), 401
+    return jsonify({"error": "Invalid credentials"}), 401

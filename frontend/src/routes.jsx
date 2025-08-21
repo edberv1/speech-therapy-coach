@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./components/Login.jsx";
 import Patients from "./components/Patients.jsx";
 import CalendarView from "./components/CalendarView.jsx";
+import Signup from "./components/Signup.jsx";
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -14,7 +15,9 @@ const ProtectedRoute = ({ children }) => {
 const RoutesComponent = () => {
   return (
     <Routes>
+       {/* Public routes */}
       <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Signup />} />  {/* <-- add this */}
       <Route
         path="/patients"
         element={

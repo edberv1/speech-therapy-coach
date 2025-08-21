@@ -1,143 +1,153 @@
 import React, { useEffect, useState } from "react";
+import api from "../api/api.js";
+
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
-import api from "../api/api.js";
+
+
 
 const CalendarView = () => {
+  const [patients, setPatients] = useState([]);
+  const [therapists, setTherapists] = useState([]);
   const [events, setEvents] = useState([]);
   const [showForm, setShowForm] = useState(false);
-  const [therapists, setTherapists] = useState([]);
-  const [patients, setPatients] = useState([]);
   const [form, setForm] = useState({
-    therapist_id: "",
     patient_id: "",
+    therapist_id: "",
     date_time: "",
-    notes: "",
+    duration_minutes: 60,
+    notes: ""
   });
 
-  // Fetch all therapies
-  const fetchTherapies = async () => {
-    const res = await api.get("/therapies/");
-    const evs = res.data.map((t) => ({
-      id: t.id,
-      title: `${t.patient} → ${t.therapist}`,
-      start: t.date_time,
-    }));
-    setEvents(evs);
-  };
-
-  // Fetch all therapists
-  const fetchTherapists = async () => {
-    const res = await api.get("/therapists/"); // create this endpoint if not exists
-    setTherapists(res.data);
-  };
-
-  // Fetch all patients
   const fetchPatients = async () => {
     const res = await api.get("/patients/");
     setPatients(res.data);
   };
 
-  useEffect(() => {
-    fetchTherapies();
-    fetchTherapists();
-    fetchPatients();
-  }, []);
-
-  // Handle form input change
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const fetchTherapists = async () => {
+    const res = await api.get("/therapists/"); // <- consistent with backend
+    setTherapists(res.data);
   };
 
-  // Submit new therapy
+  const fetchTherapies = async () => {
+    const res = await api.get("/therapies/");
+    const evs = res.data.map((t) => {
+      const start = new Date(t.date_time);
+      const end = new Date(start.getTime() + (t.duration_minutes || 60) * 60000);
+      return {
+        id: t.id,
+        title: `${t.patient || "Patient"} → ${t.therapist || "Therapist"}`,
+        start: start.toISOString(),
+        end: end.toISOString()
+      };
+    });
+    setEvents(evs);
+  };
+
+  useEffect(() => {
+    fetchPatients();
+    fetchTherapists();
+    fetchTherapies();
+  }, []);
+
+  const handleChange = (e) =>
+    setForm({ ...form, [e.target.name]: e.target.value });
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
-      await api.post("/therapies/", form);
-      setForm({ therapist_id: "", patient_id: "", date_time: "", notes: "" });
-      setShowForm(false);
-      fetchTherapies(); // refresh calendar immediately
-    } catch (err) {
-      alert(err.response?.data?.error || "Failed to add therapy");
-    }
+    await api.post("/therapies/", form);
+    setShowForm(false);
+    setForm({ patient_id: "", therapist_id: "", date_time: "", duration_minutes: 60, notes: "" });
+    fetchTherapies(); // refresh calendar
   };
 
   return (
     <div>
-      <h2>Therapies Calendar</h2>
-      <button onClick={() => setShowForm(true)}>Add New Therapy</button>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h2>Therapies Calendar</h2>
+        <button onClick={() => setShowForm(true)}>Add New Therapy</button>
+      </div>
 
-      {/* Therapy Form Modal */}
       {showForm && (
-        <div className="modal">
-          <form onSubmit={handleSubmit}>
-            <select
-              name="therapist_id"
-              value={form.therapist_id}
-              onChange={handleChange}
-              required
-            >
-              <option value="">Select Therapist</option>
-              {therapists.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
+        <div style={modalStyles.backdrop}>
+          <div style={modalStyles.modal}>
+            <h3>New Therapy</h3>
+            <form onSubmit={handleSubmit} style={{ display: "grid", gap: 8 }}>
+              <select name="patient_id" value={form.patient_id} onChange={handleChange} required>
+                <option value="">Select Patient</option>
+                {patients.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
 
-            <select
-              name="patient_id"
-              value={form.patient_id}
-              onChange={handleChange}
-              required
-            >
-              <option value="">Select Patient</option>
-              {patients.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              <select name="therapist_id" value={form.therapist_id} onChange={handleChange} required>
+                <option value="">Select Therapist</option>
+                {therapists.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
 
-            <input
-              type="datetime-local"
-              name="date_time"
-              value={form.date_time}
-              onChange={handleChange}
-              required
-            />
+              <input
+                type="datetime-local"
+                name="date_time"
+                value={form.date_time}
+                onChange={handleChange}
+                required
+              />
 
-            <input
-              type="text"
-              name="notes"
-              placeholder="Notes"
-              value={form.notes}
-              onChange={handleChange}
-            />
+              <input
+                type="number"
+                min="15"
+                step="15"
+                name="duration_minutes"
+                value={form.duration_minutes}
+                onChange={handleChange}
+                placeholder="Duration (minutes)"
+              />
 
-            <button type="submit">Add Therapy</button>
-            <button type="button" onClick={() => setShowForm(false)}>
-              Cancel
-            </button>
-          </form>
+              <input
+                name="notes"
+                value={form.notes}
+                onChange={handleChange}
+                placeholder="Notes (optional)"
+              />
+
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button type="button" onClick={() => setShowForm(false)}>Cancel</button>
+                <button type="submit">Create</button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
-      {/* Full Calendar */}
-      <FullCalendar
-        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-        initialView="timeGridWeek"
-        events={events}
-        headerToolbar={{
-          left: "prev,next today",
-          center: "title",
-          right: "dayGridMonth,timeGridWeek,timeGridDay",
-        }}
-      />
+      <div style={{ marginTop: 16 }}>
+        <FullCalendar
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+          initialView="timeGridWeek"
+          headerToolbar={{
+            left: "prev,next today",
+            center: "title",
+            right: "dayGridMonth,timeGridWeek,timeGridDay"
+          }}
+          events={events}
+          height="80vh"
+        />
+      </div>
     </div>
   );
+};
+
+const modalStyles = {
+  backdrop: {
+    position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
+    display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000
+  },
+  modal: {
+    background: "#fff", padding: 16, borderRadius: 8, width: 400, maxWidth: "95vw"
+  }
 };
 
 export default CalendarView;
